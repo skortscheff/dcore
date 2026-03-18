@@ -1,0 +1,93 @@
+{
+  "realm": "dcore",
+  "enabled": true,
+  "displayName": "Dcore",
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "accessTokenLifespan": 3600,
+  "roles": {
+    "realm": [
+      { "name": "admin",  "description": "Full control over templates and standards" },
+      { "name": "editor", "description": "Create and update client and product records" },
+      { "name": "viewer", "description": "Read-only access" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "dcore-api",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "secret": "dcore-api-secret",
+      "redirectUris": ["*"],
+      "webOrigins": ["+"],
+      "defaultClientScopes": ["web-origins", "profile", "roles", "email"],
+      "protocolMappers": [
+        {
+          "name": "realm-roles-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "roles",
+            "jsonType.label": "String",
+            "multivalued": "true",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "dcore-frontend",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["*"],
+      "webOrigins": ["+"],
+      "defaultClientScopes": ["web-origins", "profile", "roles", "email"]
+    }
+  ],
+  "users": [
+    {
+      "username": "admin-user",
+      "email": "admin@dcore.local",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "User",
+      "credentials": [{ "type": "password", "value": "admin123", "temporary": false }],
+      "realmRoles": ["admin"]
+    },
+    {
+      "username": "editor-user",
+      "email": "editor@dcore.local",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Editor",
+      "lastName": "User",
+      "credentials": [{ "type": "password", "value": "editor123", "temporary": false }],
+      "realmRoles": ["editor"]
+    },
+    {
+      "username": "viewer-user",
+      "email": "viewer@dcore.local",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Viewer",
+      "lastName": "User",
+      "credentials": [{ "type": "password", "value": "viewer123", "temporary": false }],
+      "realmRoles": ["viewer"]
+    }
+  ]
+}

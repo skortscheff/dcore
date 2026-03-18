@@ -1,0 +1,4 @@
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+
+COMMENT ON DATABASE dcore IS 'Dcore MSSP Service Delivery Platform';

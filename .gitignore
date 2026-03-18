@@ -1,0 +1,14 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+services/frontend/.next/
+services/frontend/node_modules/
+postgres/data/
+traefik/acme.json
+Dcore.zip
+-p
+.abacusai/
+.claude/
