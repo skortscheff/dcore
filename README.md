@@ -397,6 +397,144 @@ The seeder truncates existing demo rows and re-inserts fresh data. The schema is
 
 ---
 
+## Backup and Restore
+
+Three data stores hold persistent state that must be backed up: the PostgreSQL database, the MinIO evidence file store, and the `.env` secrets file. Redis (cache/queue) and Meilisearch (search index) are fully rebuildable and do not need to be backed up.
+
+### What to back up
+
+| Data | Volume | Why |
+|---|---|---|
+| PostgreSQL database | `postgres_data` | All application records — clients, products, changes, exceptions, evidence metadata, audit log |
+| MinIO evidence files | `minio_data` | Uploaded evidence files (PDFs, screenshots, exports) |
+| `.env` file | (file on host) | All generated secrets — loss means you cannot decrypt existing data or reconnect services |
+
+---
+
+### Backup
+
+Run these with the stack **running** (PostgreSQL and MinIO must be up).
+
+#### 1. Back up PostgreSQL
+
+```bash
+# Dump to a timestamped SQL file
+docker compose exec db pg_dump -U dcore -d dcore --no-password \
+  | gzip > dcore_db_$(date +%Y%m%d_%H%M%S).sql.gz
+```
+
+Verify the dump is not empty:
+
+```bash
+ls -lh dcore_db_*.sql.gz
+```
+
+#### 2. Back up MinIO evidence files
+
+```bash
+# Copy all evidence files out of the container to a local directory
+docker run --rm \
+  -v dcore_minio_data:/data:ro \
+  -v "$(pwd)/dcore_minio_backup_$(date +%Y%m%d_%H%M%S)":/backup \
+  alpine sh -c "cp -r /data/* /backup/"
+```
+
+#### 3. Back up the `.env` file
+
+```bash
+cp .env dcore_env_$(date +%Y%m%d_%H%M%S).bak
+```
+
+---
+
+### Restore
+
+> **Important:** restore requires the stack to be **down** before replacing volumes, then brought back up.
+
+#### 1. Restore PostgreSQL
+
+```bash
+# Bring the stack up (db only, to accept the restore)
+docker compose up -d db
+# Wait for it to be healthy, then restore
+gunzip -c dcore_db_YYYYMMDD_HHMMSS.sql.gz \
+  | docker compose exec -T db psql -U dcore -d dcore
+```
+
+If restoring to a fresh install (empty database), the schema already exists from `postgres/init.sql` and the dump will overwrite it cleanly.
+
+#### 2. Restore MinIO evidence files
+
+```bash
+# Stop storage container first
+docker compose stop storage
+
+# Replace volume contents
+docker run --rm \
+  -v dcore_minio_data:/data \
+  -v "$(pwd)/dcore_minio_backup_YYYYMMDD_HHMMSS":/backup:ro \
+  alpine sh -c "rm -rf /data/* && cp -r /backup/* /data/"
+
+# Restart storage
+docker compose start storage
+```
+
+#### 3. Restore the `.env` file
+
+```bash
+cp dcore_env_YYYYMMDD_HHMMSS.bak .env
+```
+
+Then rebuild and start the stack normally:
+
+```bash
+docker compose up --build -d
+```
+
+---
+
+### Automated daily backup (cron example)
+
+Create `/etc/cron.daily/dcore-backup` (adjust `BACKUP_DIR` and `KEEP_DAYS`):
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+BACKUP_DIR="/opt/dcore-backups"
+COMPOSE_DIR="/home/skortscheff/dcore"   # path to this repo
+KEEP_DAYS=30
+DATE=$(date +%Y%m%d_%H%M%S)
+
+mkdir -p "${BACKUP_DIR}"
+
+# Database
+docker compose -f "${COMPOSE_DIR}/docker-compose.yml" exec -T db \
+  pg_dump -U dcore -d dcore --no-password \
+  | gzip > "${BACKUP_DIR}/db_${DATE}.sql.gz"
+
+# MinIO evidence files
+docker run --rm \
+  -v dcore_minio_data:/data:ro \
+  -v "${BACKUP_DIR}/minio_${DATE}":/backup \
+  alpine sh -c "cp -r /data/* /backup/"
+
+# .env secrets
+cp "${COMPOSE_DIR}/.env" "${BACKUP_DIR}/env_${DATE}.bak"
+
+# Prune old backups
+find "${BACKUP_DIR}" -maxdepth 1 -name "db_*.sql.gz"   -mtime +${KEEP_DAYS} -delete
+find "${BACKUP_DIR}" -maxdepth 1 -name "minio_*" -type d -mtime +${KEEP_DAYS} \
+  -exec rm -rf {} +
+find "${BACKUP_DIR}" -maxdepth 1 -name "env_*.bak"     -mtime +${KEEP_DAYS} -delete
+```
+
+```bash
+chmod +x /etc/cron.daily/dcore-backup
+```
+
+---
+
 ## Known Schema Drift
 
 The PostgreSQL schema is initialised from `postgres/init.sql`. Several columns added to the ORM models after initial setup are not yet reflected in `init.sql` and must be applied manually after a fresh database start (see the migration commands above). A future task is to replace this with Alembic migrations so the schema is always in sync.
