@@ -23,7 +23,7 @@ const LIFECYCLE_STATES = ["proposed", "design", "approved", "build", "deployment
 const HEALTH_STATUSES = ["healthy", "degraded", "at_risk", "unsupported"];
 const PRODUCT_TYPES = ["Security", "Application", "Integration", "API", "Analytics", "Infrastructure", "Other"];
 
-const emptyForm = {
+const emptyProductForm = {
   record_id: "",
   name: "",
   environment_id: "",
@@ -38,15 +38,24 @@ const emptyForm = {
 export default function ClientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+
   const [client, setClient] = useState<Client | null>(null);
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState("");
+
+  // Product form state
+  const [showProductForm, setShowProductForm] = useState(false);
+  const [productForm, setProductForm] = useState(emptyProductForm);
+  const [productSaving, setProductSaving] = useState(false);
+  const [productFormError, setProductFormError] = useState("");
   const [recordIdLoading, setRecordIdLoading] = useState(false);
+
+  // Environment form state
+  const [showEnvForm, setShowEnvForm] = useState(false);
+  const [envForm, setEnvForm] = useState({ name: "", description: "" });
+  const [envSaving, setEnvSaving] = useState(false);
+  const [envFormError, setEnvFormError] = useState("");
 
   // Client edit state
   const [editingClient, setEditingClient] = useState(false);
@@ -78,15 +87,38 @@ export default function ClientDetailPage() {
 
   useEffect(() => { reload(); }, [id]);
 
+  // Environment handlers
+  const handleAddEnvironment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEnvFormError("");
+    setEnvSaving(true);
+    try {
+      await environmentsApi.create({
+        client_id: id,
+        name: envForm.name,
+        description: envForm.description || undefined,
+      });
+      setShowEnvForm(false);
+      setEnvForm({ name: "", description: "" });
+      reload();
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setEnvFormError(detail ?? "Failed to create environment.");
+    } finally {
+      setEnvSaving(false);
+    }
+  };
+
+  // Product handlers
   const handleEnvChange = async (envId: string) => {
-    setForm((f) => ({ ...f, environment_id: envId, record_id: "" }));
+    setProductForm((f) => ({ ...f, environment_id: envId, record_id: "" }));
     if (!envId) return;
     setRecordIdLoading(true);
     try {
       const res = await productsApi.nextId(envId);
-      setForm((f) => ({ ...f, record_id: res.data.record_id }));
+      setProductForm((f) => ({ ...f, record_id: res.data.record_id }));
     } catch {
-      // leave record_id blank for manual entry
+      // leave blank for manual entry
     } finally {
       setRecordIdLoading(false);
     }
@@ -94,31 +126,32 @@ export default function ClientDetailPage() {
 
   const handleAddProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormError("");
-    setSaving(true);
+    setProductFormError("");
+    setProductSaving(true);
     try {
       const created = await productsApi.create({
-        record_id: form.record_id,
-        name: form.name,
-        environment_id: form.environment_id,
-        product_type: form.product_type,
-        vendor: form.vendor || undefined,
-        lifecycle_state: form.lifecycle_state,
-        health_status: form.health_status,
-        technical_owner: form.technical_owner || undefined,
-        notes: form.notes || undefined,
+        record_id: productForm.record_id,
+        name: productForm.name,
+        environment_id: productForm.environment_id,
+        product_type: productForm.product_type,
+        vendor: productForm.vendor || undefined,
+        lifecycle_state: productForm.lifecycle_state,
+        health_status: productForm.health_status,
+        technical_owner: productForm.technical_owner || undefined,
+        notes: productForm.notes || undefined,
       });
-      setShowForm(false);
-      setForm(emptyForm);
+      setShowProductForm(false);
+      setProductForm(emptyProductForm);
       router.push(`/products/${created.data.id}`);
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-      setFormError(detail ?? "Failed to create product.");
+      setProductFormError(detail ?? "Failed to create product.");
     } finally {
-      setSaving(false);
+      setProductSaving(false);
     }
   };
 
+  // Client edit handlers
   const handleEditClient = () => {
     if (!client) return;
     setClientForm({
@@ -162,6 +195,8 @@ export default function ClientDetailPage() {
   return (
     <AppLayout>
       <div className="max-w-5xl mx-auto">
+
+        {/* Client header */}
         <div className="mb-6">
           <Link href="/clients" className="text-gray-500 text-sm hover:text-gray-300">← Clients</Link>
           <div className="flex items-center gap-3 mt-2">
@@ -178,6 +213,7 @@ export default function ClientDetailPage() {
           <p className="text-gray-500 text-sm">{client.code} {client.sla_tier ? `· SLA: ${client.sla_tier}` : ""}</p>
         </div>
 
+        {/* Client edit form / info grid */}
         {editingClient ? (
           <form onSubmit={handleSaveClient} className="bg-gray-900 border border-gray-800 rounded-lg p-5 mb-8 grid grid-cols-2 gap-4">
             <div>
@@ -267,19 +303,86 @@ export default function ClientDetailPage() {
           </div>
         )}
 
+        {/* Environments section */}
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold">Environments</h2>
+          <button
+            onClick={() => { setShowEnvForm(!showEnvForm); setEnvFormError(""); }}
+            className="text-sm px-4 py-2 bg-indigo-800 hover:bg-indigo-700 text-white rounded"
+          >
+            {showEnvForm ? "Cancel" : "+ Add Environment"}
+          </button>
+        </div>
+
+        {showEnvForm && (
+          <form
+            onSubmit={handleAddEnvironment}
+            className="bg-gray-900 border border-gray-800 rounded-lg p-4 mb-4 grid grid-cols-2 gap-4"
+          >
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">Name *</label>
+              <input
+                required value={envForm.name}
+                onChange={(e) => setEnvForm({ ...envForm, name: e.target.value })}
+                placeholder="e.g. Production"
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">Description</label>
+              <input
+                value={envForm.description}
+                onChange={(e) => setEnvForm({ ...envForm, description: e.target.value })}
+                placeholder="e.g. Live production environment"
+                className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white"
+              />
+            </div>
+            {envFormError && <p className="col-span-2 text-red-400 text-xs">{envFormError}</p>}
+            <div className="col-span-2">
+              <button
+                type="submit" disabled={envSaving}
+                className="px-5 py-2 bg-indigo-800 hover:bg-indigo-700 text-white text-sm rounded disabled:opacity-50"
+              >
+                {envSaving ? "Creating…" : "Create Environment"}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {environments.length === 0 ? (
+          <p className="text-gray-500 text-sm mb-8">No environments yet — add one above before creating products.</p>
+        ) : (
+          <div className="flex flex-col gap-2 mb-8">
+            {environments.map((env) => (
+              <div key={env.id} className="bg-gray-900 border border-gray-800 rounded-lg px-4 py-3 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-white">{env.name}</p>
+                  {env.description && <p className="text-xs text-gray-500 mt-0.5">{env.description}</p>}
+                </div>
+                <span className="text-xs text-gray-600">{env.id.slice(0, 8)}…</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Products section */}
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold">Products</h2>
           {environments.length > 0 && (
             <button
-              onClick={() => { setShowForm(!showForm); setFormError(""); }}
+              onClick={() => { setShowProductForm(!showProductForm); setProductFormError(""); }}
               className="text-sm px-4 py-2 bg-blue-800 hover:bg-blue-700 text-white rounded"
             >
-              {showForm ? "Cancel" : "+ Add Product"}
+              {showProductForm ? "Cancel" : "+ Add Product"}
             </button>
           )}
         </div>
 
-        {showForm && (
+        {environments.length === 0 && (
+          <p className="text-gray-500 text-sm mb-4">Add an environment above to enable product creation.</p>
+        )}
+
+        {showProductForm && (
           <form
             onSubmit={handleAddProduct}
             className="bg-gray-900 border border-gray-800 rounded-lg p-5 mb-5 grid grid-cols-2 gap-4"
@@ -287,7 +390,7 @@ export default function ClientDetailPage() {
             <div>
               <label className="text-xs text-gray-400 block mb-1">Environment *</label>
               <select
-                required value={form.environment_id}
+                required value={productForm.environment_id}
                 onChange={(e) => handleEnvChange(e.target.value)}
                 className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white"
               >
@@ -303,8 +406,8 @@ export default function ClientDetailPage() {
                 {recordIdLoading && <span className="ml-2 text-gray-500 italic">generating…</span>}
               </label>
               <input
-                required value={form.record_id}
-                onChange={(e) => setForm({ ...form, record_id: e.target.value })}
+                required value={productForm.record_id}
+                onChange={(e) => setProductForm({ ...productForm, record_id: e.target.value })}
                 placeholder="Select an environment first"
                 className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white"
               />
@@ -312,8 +415,8 @@ export default function ClientDetailPage() {
             <div>
               <label className="text-xs text-gray-400 block mb-1">Name *</label>
               <input
-                required value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required value={productForm.name}
+                onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
                 placeholder="e.g. Palo Alto Firewall"
                 className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white"
               />
@@ -321,8 +424,8 @@ export default function ClientDetailPage() {
             <div>
               <label className="text-xs text-gray-400 block mb-1">Product Type *</label>
               <select
-                value={form.product_type}
-                onChange={(e) => setForm({ ...form, product_type: e.target.value })}
+                value={productForm.product_type}
+                onChange={(e) => setProductForm({ ...productForm, product_type: e.target.value })}
                 className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white"
               >
                 {PRODUCT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -331,8 +434,8 @@ export default function ClientDetailPage() {
             <div>
               <label className="text-xs text-gray-400 block mb-1">Vendor</label>
               <input
-                value={form.vendor}
-                onChange={(e) => setForm({ ...form, vendor: e.target.value })}
+                value={productForm.vendor}
+                onChange={(e) => setProductForm({ ...productForm, vendor: e.target.value })}
                 placeholder="e.g. Palo Alto Networks"
                 className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white"
               />
@@ -340,8 +443,8 @@ export default function ClientDetailPage() {
             <div>
               <label className="text-xs text-gray-400 block mb-1">Technical Owner</label>
               <input
-                value={form.technical_owner}
-                onChange={(e) => setForm({ ...form, technical_owner: e.target.value })}
+                value={productForm.technical_owner}
+                onChange={(e) => setProductForm({ ...productForm, technical_owner: e.target.value })}
                 placeholder="e.g. alice@acme.com"
                 className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white"
               />
@@ -349,8 +452,8 @@ export default function ClientDetailPage() {
             <div>
               <label className="text-xs text-gray-400 block mb-1">Lifecycle State</label>
               <select
-                value={form.lifecycle_state}
-                onChange={(e) => setForm({ ...form, lifecycle_state: e.target.value })}
+                value={productForm.lifecycle_state}
+                onChange={(e) => setProductForm({ ...productForm, lifecycle_state: e.target.value })}
                 className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white"
               >
                 {LIFECYCLE_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -359,8 +462,8 @@ export default function ClientDetailPage() {
             <div>
               <label className="text-xs text-gray-400 block mb-1">Health Status</label>
               <select
-                value={form.health_status}
-                onChange={(e) => setForm({ ...form, health_status: e.target.value })}
+                value={productForm.health_status}
+                onChange={(e) => setProductForm({ ...productForm, health_status: e.target.value })}
                 className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white"
               >
                 {HEALTH_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -369,19 +472,19 @@ export default function ClientDetailPage() {
             <div className="col-span-2">
               <label className="text-xs text-gray-400 block mb-1">Notes</label>
               <textarea
-                value={form.notes}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                value={productForm.notes}
+                onChange={(e) => setProductForm({ ...productForm, notes: e.target.value })}
                 rows={3}
                 className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-white"
               />
             </div>
-            {formError && <p className="col-span-2 text-red-400 text-xs">{formError}</p>}
+            {productFormError && <p className="col-span-2 text-red-400 text-xs">{productFormError}</p>}
             <div className="col-span-2">
               <button
-                type="submit" disabled={saving}
+                type="submit" disabled={productSaving}
                 className="px-5 py-2 bg-green-800 hover:bg-green-700 text-white text-sm rounded disabled:opacity-50"
               >
-                {saving ? "Creating…" : "Create Product"}
+                {productSaving ? "Creating…" : "Create Product"}
               </button>
             </div>
           </form>
@@ -408,6 +511,7 @@ export default function ClientDetailPage() {
             ))}
           </div>
         )}
+
       </div>
     </AppLayout>
   );
