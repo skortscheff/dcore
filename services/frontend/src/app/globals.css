@@ -21,6 +21,16 @@
   ::-webkit-scrollbar-thumb:hover { background: #2d3f55; }
 }
 
+/* Default accent CSS variables (overridden by ThemeContext JS) */
+:root {
+  --accent:        #6366f1;
+  --accent-rgb:    99, 102, 241;
+  --accent-dark:   #4338ca;
+  --accent-light:  rgba(99, 102, 241, 0.85);
+  --accent-bg:     rgba(99, 102, 241, 0.08);
+  --accent-border: rgba(99, 102, 241, 0.28);
+}
+
 @layer utilities {
   .gradient-text {
     @apply bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent;
@@ -33,16 +43,21 @@
   }
   .input-base {
     @apply bg-[#0d1221] border border-[#1a2035] rounded-lg px-3 py-2 text-sm text-white
-           placeholder:text-gray-600
-           focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20
-           transition-colors w-full;
+           placeholder:text-gray-600 transition-colors w-full;
+  }
+  .input-base:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px rgba(var(--accent-rgb), 0.20);
   }
   .btn-primary {
-    @apply bg-gradient-to-r from-indigo-600 to-violet-600
-           hover:from-indigo-500 hover:to-violet-500
-           text-white font-medium rounded-lg px-4 py-2 text-sm
-           shadow-lg shadow-indigo-950/50
+    background: linear-gradient(to right, var(--accent-dark), var(--accent));
+    @apply text-white font-medium rounded-lg px-4 py-2 text-sm
            transition-all duration-200 active:scale-[0.98] cursor-pointer;
+    box-shadow: 0 4px 14px rgba(var(--accent-rgb), 0.30);
+  }
+  .btn-primary:hover {
+    filter: brightness(1.12);
   }
   .btn-ghost {
     @apply bg-[#0d1221] border border-[#1a2035] rounded-lg px-4 py-2 text-sm text-gray-400
