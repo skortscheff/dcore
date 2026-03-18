@@ -1,3 +1,52 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: #05070d;
+    color: #f1f5f9;
+  }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #1e2a3a; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #2d3f55; }
+}
+
+@layer utilities {
+  .gradient-text {
+    @apply bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent;
+  }
+  .card {
+    @apply bg-[#0d1221] border border-[#1a2035] rounded-xl transition-all duration-200;
+  }
+  .card-hover {
+    @apply hover:border-[#2d3555] hover:bg-[#0f1529];
+  }
+  .input-base {
+    @apply bg-[#0d1221] border border-[#1a2035] rounded-lg px-3 py-2 text-sm text-white
+           placeholder:text-gray-600
+           focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20
+           transition-colors w-full;
+  }
+  .btn-primary {
+    @apply bg-gradient-to-r from-indigo-600 to-violet-600
+           hover:from-indigo-500 hover:to-violet-500
+           text-white font-medium rounded-lg px-4 py-2 text-sm
+           shadow-lg shadow-indigo-950/50
+           transition-all duration-200 active:scale-[0.98] cursor-pointer;
+  }
+  .btn-ghost {
+    @apply bg-[#0d1221] border border-[#1a2035] rounded-lg px-4 py-2 text-sm text-gray-400
+           hover:border-[#2d3555] hover:text-white
+           transition-all duration-200 cursor-pointer;
+  }
+}

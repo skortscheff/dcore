@@ -43,6 +43,7 @@ export interface Product {
   environment_id: string;
   product_type: string;
   vendor?: string;
+  serial_number?: string;
   lifecycle_state: string;
   health_status: string;
   technical_owner?: string;

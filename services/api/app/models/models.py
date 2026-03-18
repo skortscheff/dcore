@@ -91,6 +91,7 @@ class Product(Base):
     environment_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("environments.id", ondelete="CASCADE"))
     product_type: Mapped[str] = mapped_column(String(64), nullable=False)
     vendor: Mapped[str | None] = mapped_column(String(128))
+    serial_number: Mapped[str | None] = mapped_column(String(255))
     lifecycle_state: Mapped[LifecycleState] = mapped_column(Enum(LifecycleState), default=LifecycleState.proposed)
     health_status: Mapped[HealthStatus] = mapped_column(Enum(HealthStatus), default=HealthStatus.healthy)
     technical_owner: Mapped[str | None] = mapped_column(String(255))

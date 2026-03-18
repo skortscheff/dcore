@@ -74,6 +74,7 @@ ALTER TABLE evidence_records ADD COLUMN IF NOT EXISTS file_name varchar(255);
 ALTER TABLE evidence_records ADD COLUMN IF NOT EXISTS mime_type varchar(128);
 ALTER TABLE evidence_records ADD COLUMN IF NOT EXISTS cobit_control varchar(64);
 ALTER TABLE evidence_records ADD COLUMN IF NOT EXISTS itil_process varchar(128);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS serial_number varchar(255);
 "
 docker compose exec api python -m app.seed
 ```
@@ -354,6 +355,7 @@ ALTER TABLE evidence_records ADD COLUMN IF NOT EXISTS file_name varchar(255);
 ALTER TABLE evidence_records ADD COLUMN IF NOT EXISTS mime_type varchar(128);
 ALTER TABLE evidence_records ADD COLUMN IF NOT EXISTS cobit_control varchar(64);
 ALTER TABLE evidence_records ADD COLUMN IF NOT EXISTS itil_process varchar(128);
+ALTER TABLE products ADD COLUMN IF NOT EXISTS serial_number varchar(255);
 "
 docker compose exec api python -m app.seed
 ```

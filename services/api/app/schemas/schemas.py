@@ -56,6 +56,7 @@ class ProductCreate(BaseModel):
     environment_id: uuid.UUID
     product_type: str
     vendor: str | None = None
+    serial_number: str | None = None
     lifecycle_state: LifecycleState = LifecycleState.proposed
     health_status: HealthStatus = HealthStatus.healthy
     technical_owner: str | None = None
@@ -67,6 +68,7 @@ class ProductUpdate(BaseModel):
     name: str | None = None
     product_type: str | None = None
     vendor: str | None = None
+    serial_number: str | None = None
     health_status: HealthStatus | None = None
     technical_owner: str | None = None
     last_validated: datetime | None = None
